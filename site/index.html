@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>nixllm &mdash; self-hosted LLM serving where the store IS the registry</title>
+  <meta name="description" content="Self-hosted LLM serving where the model store IS the registry: drop a GGUF in a directory and it is servable by name, no catalog, ever. One shared llama-swap + llama.cpp broker fronted by LiteLLM. Pre-alpha, module landed.">
+
+  <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <meta property="og:title" content="nixllm">
+  <meta property="og:description" content="One shared llama-swap + llama.cpp broker owns every model on the card, fronted by LiteLLM as a single OpenAI-compatible door. No hand-maintained model catalog, ever.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nixllm.corbet.ch">
+  <meta name="twitter:card" content="summary">
+
+  <link rel="stylesheet" href="https://v1.foss.design.corbet.ch/assets/base.css">
+  <link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+
+<header class="hero">
+  <nav>
+    <a href="/" class="nav-brand">nixllm</a>
+    <div class="nav-links">
+      <a href="https://github.com/julian-corbet/nixllm-corbet-ch">GitHub</a>
+      <a href="#status">Status</a>
+      <a href="#module">Module</a>
+      <a href="#requirements">Requirements</a>
+    </div>
+  </nav>
+
+  <div class="hero-content">
+    <h1>nixllm</h1>
+    <p class="tagline">Self-hosted LLM serving where the model store IS the registry</p>
+    <p class="subtitle">Drop a GGUF in a directory and it is servable by name
+    &mdash; no catalog, ever. One shared llama-swap + llama.cpp broker owns
+    every model on the card, fronted by LiteLLM as a single OpenAI-compatible
+    door. The serving config is generated from the store &mdash; a derived,
+    throwaway artifact, never a source of truth you edit.</p>
+    <div class="cta">
+      <a href="#status" class="btn btn-primary">Read the honest status</a>
+      <a href="https://github.com/julian-corbet/nixllm-corbet-ch" class="btn btn-secondary">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section id="status" class="how-it-works">
+  <div class="container">
+    <h2>Status: pre-alpha, module landed</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">!</div>
+        <h3>Runs in production today</h3>
+        <p>The lane runs in production on a shared single-GPU cluster in its
+        original form &mdash; continuous batching, fit-aware MoE
+        expert-offload, and the store-as-registry config generator, all
+        live.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">!</div>
+        <h3><code>serving</code> module landed</h3>
+        <p>The generalized <code>serving</code> module
+        (<code>nixidyModules.serving</code>) is extracted and published in
+        this repo &mdash; render-checked, but not yet re-verified live in its
+        generalized form. It packages the full lane: llama-swap + llama.cpp
+        broker, LiteLLM front door, store-scan config generator, and the GPU
+        contract surface (priority class, device token, Recreate strategy) as
+        options.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">!</div>
+        <h3>No invented benchmarks</h3>
+        <p>Nothing on this page claims a module, benchmark, or behavior that
+        isn't real. This lane implements behaviors B4/B10/B14/B15 of the
+        <a href="https://github.com/julian-corbet/nixgpu-corbet-ch/blob/main/CONTRACT.md">nixgpu contract</a>
+        &mdash; the honest spec it's built and tested against.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="container">
+    <h2>The pitch</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>The store IS the registry</h3>
+        <p>Serving mode comes from the subdirectory (<code>embeddings/</code>
+        &rarr; embedder, <code>rerankers/</code> &rarr; reranker, anything
+        else &rarr; chat); context length and chat template come from GGUF
+        metadata; the rest is sane defaults. Adding a model = dropping a
+        file.</p>
+      </div>
+      <div class="feature">
+        <h3>Fit-aware, not naive</h3>
+        <p>An oversized dense model is skipped &mdash; never the card-reset an
+        oversized full-offload load risks. An oversized Mixture-of-Experts
+        model is served anyway, experts on CPU RAM, attention + KV on the GPU.
+        Shard sets collapse to their first member; stable app-facing names
+        come from a one-line alias file beside the model.</p>
+      </div>
+      <div class="feature">
+        <h3>One broker, no VRAM hogs</h3>
+        <p>Apps never start their own GPU model server &mdash; they point at
+        the one front door with a key and a model name, and request no GPU of
+        their own. Models load on demand in seconds (a warm page cache does
+        the heavy lifting) and idle models unload.</p>
+      </div>
+      <div class="feature">
+        <h3>Concurrency is first-class, twice</h3>
+        <p>Same-model requests interleave via continuous batching; several
+        small models co-reside and serve in parallel when they fit
+        together.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="module" class="commands">
+  <div class="container">
+    <h2>Module</h2>
+    <div class="table-scroll">
+      <table>
+        <tbody>
+          <tr><td><code>serving</code></td><td>The full lane as a nixidy module: llama-swap + llama.cpp broker, LiteLLM front door, store-scan config generator, GPU contract surface as options. Landed &mdash; generalized and render-checked, not yet re-verified live in its generalized form. See <a href="https://github.com/julian-corbet/nixllm-corbet-ch/blob/main/modules/serving/README.md">modules/serving/README.md</a> for the option table.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="requirements" class="commands">
+  <div class="container">
+    <h2>Requirements (deliberate, not negotiable)</h2>
+    <div class="table-scroll">
+      <table>
+        <tbody>
+          <tr><td>Delivery path</td><td>Declarative GitOps only &mdash; nixidy-rendered manifests synced by Argo CD, the spine shipped by the sibling <a href="https://github.com/julian-corbet/nixk3s-corbet-ch">nixk3s</a> project. Hand-applied YAML is not supported.</td></tr>
+          <tr><td>GPU scheduling</td><td>Priority-based scheduling and VRAM reclaim come from the sibling <a href="https://github.com/julian-corbet/nixgpu-corbet-ch">nixgpu</a> project; this lane declares its three-line contract and never manages the card itself.</td></tr>
+          <tr><td>Scope</td><td>Serving lane only &mdash; one shared LLM broker. Other tenants (image generation, TTS, &hellip;) ship as app modules in the sibling <a href="https://github.com/julian-corbet/nixapps-corbet-ch">nixapps</a> project.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="architecture">
+  <div class="container">
+    <h2>Related projects</h2>
+    <div class="arch-details">
+      <div class="arch-detail">
+        <h3>nixgpu</h3>
+        <p>Priority-based sharing of one GPU &mdash; the substrate this lane
+        runs on. See <a href="https://nixgpu.corbet.ch">nixgpu.corbet.ch</a>.</p>
+      </div>
+      <div class="arch-detail">
+        <h3>nixk3s</h3>
+        <p>Bare-metal k3s on NixOS + the nixidy &rarr; Argo CD GitOps spine
+        this lane deploys onto. See <a href="https://nixk3s.corbet.ch">nixk3s.corbet.ch</a>.</p>
+      </div>
+      <div class="arch-detail">
+        <h3>nixapps</h3>
+        <p>Curated tenant app modules (image generation, TTS, &hellip;) that
+        consume the same contracts &mdash; and where this lane started before
+        it graduated into its own project. See
+        <a href="https://nixapps.corbet.ch">nixapps.corbet.ch</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="https://github.com/julian-corbet/nixllm-corbet-ch">Source</a>
+      <a href="https://github.com/julian-corbet/nixllm-corbet-ch/issues">Issues</a>
+      <a href="https://nixgpu.corbet.ch">nixgpu</a>
+      <a href="https://nixk3s.corbet.ch">nixk3s</a>
+      <a href="https://nixapps.corbet.ch">nixapps</a>
+    </div>
+    <p>
+      <a href="https://github.com/julian-corbet/nixllm-corbet-ch/blob/main/LICENSE">MIT</a> &middot;
+      <a href="https://github.com/julian-corbet">Julian Corbet</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

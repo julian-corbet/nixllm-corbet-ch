@@ -1,0 +1,12 @@
+name = "nixllm"
+compatibility_date = "2026-07-21"
+
+# Static project page — Cloudflare Worker static assets (same shape as the
+# sibling project sites). Links the central foss/v1 design + local theme.css.
+[assets]
+directory = "./site"
+html_handling = "auto-trailing-slash"
+
+[[routes]]
+pattern = "nixllm.corbet.ch"
+custom_domain = true

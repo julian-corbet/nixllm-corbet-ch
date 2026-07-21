@@ -1,0 +1,32 @@
+/* nixllm theme — overrides only the accent of the foss v1 base.
+   Retints the central design system accent to magenta/pink, distinct from
+   the other project-family pages (emerald, teal, cyan, amber, red, blue,
+   violet all taken by siblings).
+
+   Contrast checked against WCAG AA (4.5:1) for both directions:
+     dark:  #f472b6 accent text on #0b1120 bg          -> ~7.6:1
+     dark:  #0b1120 accent-text on #f472b6 button bg   -> ~7.6:1
+     light: #be185d accent text on #ffffff bg          -> ~5.9:1
+     light: #ffffff accent-text on #be185d button bg   -> ~5.9:1
+*/
+
+:root {
+  /* Dark mode (and default) accent - magenta. */
+  --accent: #f472b6;
+  --accent-hover: #f9a8d4;
+  --accent-dim: rgba(244, 114, 182, 0.12);
+  --accent-glow: rgba(244, 114, 182, 0.08);
+  --accent-text: #0b1120;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Deeper magenta for light mode - keeps text-on-white contrast at
+       WCAG AA (#be185d on #ffffff ~= 5.9:1). */
+    --accent: #be185d;
+    --accent-hover: #9d174d;
+    --accent-dim: rgba(190, 24, 93, 0.08);
+    --accent-glow: rgba(190, 24, 93, 0.06);
+    --accent-text: #ffffff;
+  }
+}
