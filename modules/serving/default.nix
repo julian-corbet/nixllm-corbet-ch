@@ -102,6 +102,16 @@ in
       description = "Namespace the broker and LiteLLM Deployments run in.";
     };
 
+    appName = lib.mkOption {
+      type = lib.types.str;
+      default = "llm-serving";
+      description = ''
+        Name of the generated nixidy/Argo application. Override to adopt an EXISTING
+        application's name so a migration onto this module becomes an in-place spec update
+        (no prune/recreate race) instead of a delete-and-recreate across two applications.
+      '';
+    };
+
     createNamespace = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -463,7 +473,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    applications.llm-serving = {
+    applications.${cfg.appName} = {
       namespace = cfg.namespace;
       createNamespace = cfg.createNamespace;
       project = cfg.project;

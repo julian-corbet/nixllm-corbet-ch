@@ -59,6 +59,7 @@ Top-level:
 |---|---|---|---|
 | `nixllm.serving.enable` | bool | `false` | Enable the module. |
 | `nixllm.serving.namespace` | str | `"llm"` | Namespace for the broker and LiteLLM. |
+| `nixllm.serving.appName` | str | `"llm-serving"` | Name of the generated nixidy/Argo application; override to adopt an existing app name in-place during migration. |
 | `nixllm.serving.createNamespace` | bool | `true` | Whether this application creates its namespace. |
 | `nixllm.serving.project` | str | `"apps"` | nixidy AppProject. Map to whatever tier your scheme uses for apps that touch the GPU directly — this belongs with other direct GPU consumers, not with plain CPU-only apps or with nixgpu's own device-infra tier. |
 | `nixllm.serving.modelStoreHostPath` | str | **required** | Host path to the model store root. No default — every deployment's storage differs; a default here would be a lie. |
