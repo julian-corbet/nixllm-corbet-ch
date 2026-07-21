@@ -47,9 +47,10 @@ sharing substrate it runs on.
 
 ## Status
 
-**Pre-alpha, module landed.** The lane runs in production on a shared
-single-GPU cluster in its original form. The generalized module is extracted
-and render-checked, but not yet re-verified live in its generalized form.
+**Pre-alpha, and dogfooded: the originating cluster runs THIS module in
+production.** The lane was adopted back in-place (via the `appName` option,
+no prune/recreate) — the generalized module serves real models on the real
+card today, front door and store-scan generator included.
 
 ## Requirements (deliberate, not negotiable)
 

@@ -82,8 +82,8 @@
         <h3><code>serving</code> module landed</h3>
         <p>The generalized <code>serving</code> module
         (<code>nixidyModules.serving</code>) is extracted and published in
-        this repo &mdash; render-checked, but not yet re-verified live in its
-        generalized form. It packages the full lane: llama-swap + llama.cpp
+        this repo &mdash; and dogfooded back: the originating cluster runs this
+        generalized module in production since 2026-07-22. It packages the full lane: llama-swap + llama.cpp
         broker, LiteLLM front door, store-scan config generator, and the GPU
         contract surface (priority class, device token, Recreate strategy) as
         options.</p>
@@ -143,7 +143,7 @@
     <div class="table-scroll">
       <table>
         <tbody>
-          <tr><td><code>serving</code></td><td>The full lane as a nixidy module: llama-swap + llama.cpp broker, LiteLLM front door, store-scan config generator, GPU contract surface as options. Landed &mdash; generalized and render-checked, not yet re-verified live in its generalized form. See <a href="https://github.com/julian-corbet/nixllm-corbet-ch/blob/main/modules/serving/README.md">modules/serving/README.md</a> for the option table.</td></tr>
+          <tr><td><code>serving</code></td><td>The full lane as a nixidy module: llama-swap + llama.cpp broker, LiteLLM front door, store-scan config generator, GPU contract surface as options. Landed and dogfooded &mdash; the originating production cluster runs this generalized module. See <a href="https://github.com/julian-corbet/nixllm-corbet-ch/blob/main/modules/serving/README.md">modules/serving/README.md</a> for the option table.</td></tr>
         </tbody>
       </table>
     </div>
