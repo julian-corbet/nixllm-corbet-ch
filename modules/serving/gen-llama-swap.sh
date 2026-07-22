@@ -27,6 +27,7 @@ STORE="${STORE:-/models}"
 OUT="${OUT:-/config.d/config.yaml}"              # the one llama-swap config the broker --watch-config's
 SYS="${SYS:-/host/sys}"
 RESERVE_BYTES="${RESERVE_BYTES:-2147483648}"     # headroom for KV cache + runtime overhead
+FIT_TARGET_MIB=$(( RESERVE_BYTES / 1048576 ))    # --fit headroom in MiB (same reserve as the skip gate); chat models pass --fit-target this
 TTL="${TTL:-300}"
 # healthCheckTimeout: measured too short at the industry-default 180s for large --cpu-moe cold-loads on the
 # system this generator was extracted from — a ~37 GB MoE model took ~7 minutes to pass its first health
@@ -97,17 +98,20 @@ find "$STORE" -maxdepth 2 -name '*.gguf' 2>/dev/null | sort | while read -r path
       ;;
   esac
 
-  # Fit gate (B10/B15): dense > VRAM is skipped; an oversized MoE serves with experts on CPU (--cpu-moe)
-  # as long as it fits the RAM ceiling. "Too large" = can't fit even with partial offload.
-  offload=""
+  # Fit/skip gate (B8/B10/B15): chat models get llama.cpp's NATIVE --fit (below), which reads live
+  # free VRAM at every launch (hipMemGetInfo) and offloads exactly enough — MoE experts first, then
+  # whole layers — to fit what's free RIGHT NOW, with real per-tensor + KV accounting. So we no longer
+  # statically pick -ngl/--cpu-moe (that DEFEATED --fit and made a "just fits" model hog the whole
+  # card). We still SKIP only what cannot be served at all: a MoE bigger than the RAM ceiling (experts
+  # won't fit even on CPU), or a dense model bigger than VRAM (dense layers can't shed to CPU without
+  # becoming unusably slow). An oversized-but-RAM-fitting MoE is served — --fit offloads it at runtime.
   if [ "$size" -gt "$THRESH" ]; then
-    if is_moe "$path" && [ "$size" -lt "$RAMCEIL" ]; then
-      offload="--cpu-moe"; log "MoE expert-offload→CPU for oversized $rel (${size}B > ${THRESH}B VRAM, fits RAM)"
-    elif is_moe "$path"; then
+    if is_moe "$path" && [ "$size" -ge "$RAMCEIL" ]; then
       log "SKIP (MoE too large even for RAM: ${size}B > ${RAMCEIL}B) $rel"; continue
-    else
+    elif ! is_moe "$path"; then
       log "SKIP (dense too large for VRAM: ${size}B > ${THRESH}B) $rel"; continue
     fi
+    log "oversized MoE $rel (${size}B > ${THRESH}B VRAM, fits RAM) — served; --fit offloads experts at launch"
   fi
 
   case "$dir" in
@@ -123,11 +127,15 @@ find "$STORE" -maxdepth 2 -name '*.gguf' 2>/dev/null | sort | while read -r path
   [ -f "$path.env" ] && . "$path.env" 2>/dev/null || true
 
   # same-model concurrency (B14): small models that fit comfortably get parallel slots (continuous batching
-  # is default-on in llama.cpp); big/offloaded models stay single-slot to bound KV-cache VRAM.
-  np=1; [ -z "$offload" ] && [ "$size" -lt "$SMALL_MODEL_BYTES" ] && np=$NP_SMALL
+  # is default-on in llama.cpp); big models stay single-slot to bound KV-cache VRAM.
+  np=1; [ "$size" -lt "$SMALL_MODEL_BYTES" ] && np=$NP_SMALL
 
   case "$mode" in
-    chat)   flags="-ngl 999 -c $CONTEXT_CHAT -np $np $offload" ;;
+    # --fit on: llama.cpp auto-offloads at launch to fit live free VRAM (headroom = FIT_TARGET_MIB,
+    # reusing the RESERVE the skip gate uses). NO explicit -ngl/--cpu-moe/-ot — any of those DISABLES
+    # fitting for that parameter. -c is the target context; --fit shrinks it (down to its floor) only
+    # if VRAM is too tight. Verified live on the ROCm build: a 26B MoE loaded + served with ~7 GiB free.
+    chat)   flags="--fit on --fit-target $FIT_TARGET_MIB -c $CONTEXT_CHAT -np $np" ;;
     embed)  flags="--embeddings --pooling last -c $CONTEXT_EMBED_RERANK -b $BATCH_EMBED_RERANK -ub $BATCH_EMBED_RERANK -np $np" ;;
     rerank) flags="--reranking -c $CONTEXT_EMBED_RERANK -b $BATCH_EMBED_RERANK -ub $BATCH_EMBED_RERANK -np 1" ;;
   esac
