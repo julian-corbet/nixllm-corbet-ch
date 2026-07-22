@@ -17,11 +17,14 @@ catalog that drifts from the directory it describes. `nixllm` deletes it:
   (`embeddings/` → embedder, `rerankers/` → reranker, anything else → chat);
   context length and chat template come from GGUF metadata; the rest is sane
   defaults. Adding a model = dropping a file.
-- **Fit-aware, not naive.** An oversized dense model is skipped (never the
-  card-reset an oversized full-offload load risks); an oversized
-  Mixture-of-Experts model is served anyway, experts on CPU RAM, attention +
-  KV on the GPU. Shard sets collapse to their first member; stable app-facing
-  names come from a one-line alias file beside the model.
+- **Fit-aware, not naive.** Every chat model launches through llama.cpp's own
+  native `--fit`, which reads live free VRAM at launch and offloads exactly
+  enough to fit right now — Mixture-of-Experts experts first, then whole
+  layers for dense models — instead of a static, store-scan-time guess. A
+  truly oversized dense model with no MoE structure to shed is still skipped
+  (never the card-reset a forced full-offload load risks). Shard sets
+  collapse to their first member; stable app-facing names come from a
+  one-line alias file beside the model.
 - **One broker, no VRAM hogs.** Apps never start their own GPU model server —
   they point at the one front door with a key and a model name, and request
   no GPU of their own. Models load on demand in seconds (a warm page cache
@@ -51,6 +54,17 @@ sharing substrate it runs on.
 production.** The lane was adopted back in-place (via the `appName` option,
 no prune/recreate) — the generalized module serves real models on the real
 card today, front door and store-scan generator included.
+
+The fit-aware offload behavior above was proven live, the same day it was
+built, under deliberately adversarial contention on that originating
+cluster: a non-resident chat model, requested through the real production
+front door with the card already filled to within roughly 2.5 GiB of its
+16 GiB total by other tenants, served successfully in 44 seconds with zero
+GPU resets. That is real evidence the "served, not refused" claim holds
+under genuine pressure — not proof of long-term stability. It shipped and
+was verified today under synthetic adversarial load, with no multi-day
+organic soak time yet; don't read this as "production ready" or "no known
+issues."
 
 ## Requirements (deliberate, not negotiable)
 

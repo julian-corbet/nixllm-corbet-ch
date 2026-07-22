@@ -13,11 +13,16 @@ a timer and writes llama-swap's config directly from what it finds:
 - serving mode comes from the subdirectory a GGUF lives in — `embeddings/`
   serves in embedding mode, `rerankers/` in reranking mode, anything else in
   chat mode;
-- a Mixture-of-Experts model is detected from its own GGUF header and, if it
-  doesn't fit VRAM, served with its experts offloaded to CPU RAM instead of
-  being refused outright;
-- an oversized *dense* model (no MoE structure to offload) is skipped rather
-  than risking an OOM / GPU-driver reset;
+- every chat-mode model is launched through llama.cpp's own native **`--fit`**
+  mechanism, not a static store-scan-time guess: at launch, `--fit` reads how
+  much VRAM is actually free right now and offloads exactly enough to fit it —
+  Mixture-of-Experts experts first, then whole layers for dense models if
+  still short — so the offload split is a live, per-launch decision, not
+  something baked into the generated config ahead of time;
+- an oversized *dense* model (no MoE structure to shed) is still skipped at
+  store-scan time rather than risking an OOM / GPU-driver reset — no amount of
+  runtime fitting helps a dense model that would not even run at usable speed
+  fully offloaded to CPU;
 - a `-00001-of-NNNNN`-style shard set collapses to its first member for size
   accounting;
 - a friendly app-facing name comes from a small alias map (only for models
@@ -116,7 +121,7 @@ environment-variable inputs:
 | `aliases` | attrsOf str | `{}` | Friendly name → relative GGUF path. Only for models an app addresses by a stable name. |
 | `vramFallbackBytes` | int | `17163091968` | Fallback VRAM total (~16 GiB, the nixgpu reference card) if sysfs is unreadable. |
 | `ramFallbackKb` | int | `131072000` | Fallback RAM total if `/proc/meminfo` is unreadable. |
-| `ramCeilingPercent` | int (1-100) | `80` | Max % of system RAM an offloaded MoE model's experts may occupy (B15). |
+| `ramCeilingPercent` | int (1-100) | `80` | Max % of system RAM an oversized MoE model's expert weights may occupy before it is skipped at store-scan time; the offload itself is a runtime `--fit` decision, not this gate (B15). |
 | `smallModelBytes` | int | `6442450944` | Below this, a model gets same-model concurrency (multiple `-np` slots, B14a). |
 | `npSmall` | int | `4` | Parallel slot count for models under `smallModelBytes`. |
 | `contextSizeChat` | int | `16384` | Context window for chat-mode models. |
@@ -154,7 +159,21 @@ stem. It requests no GPU resource of its own.
 
 Extracted from a production system where this lane runs live — serving a
 RAG stack (embedder + reranker + chat models) and other consuming apps
-against a single shared GPU. **This generalized module has not yet been
-re-verified live**; re-verify before trusting it in a new cluster.
+against a single shared GPU, and dogfooded there today. **The generalized
+module has since been re-verified live**, including under deliberately
+adversarial contention (below) — this is not a "trust but verify before use"
+caveat anymore, though it is still same-day validation, not multi-day
+organic soak.
+
+The `--fit`-based runtime offload described above is not just a design on
+paper: on the originating cluster it was proven live under deliberately
+adversarial contention — a chat model not yet resident, the card already
+filled to within roughly 2.5 GiB of its 16 GiB total by other best-effort
+tenants, requested through the real front door (not a synthetic harness) —
+and it served successfully, in 44 seconds, with zero GPU resets. That is
+concrete evidence for B15's "served, not refused" claim under real
+pressure, not just the happy-path case. It is one same-day proof under
+synthetic adversarial load, though, not multi-day organic soak — treat it as
+real confidence, not as "hardened" or "no further work needed."
 
 Source lineage: generalized from a production single-GPU cluster.
