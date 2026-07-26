@@ -66,6 +66,18 @@ was verified today under synthetic adversarial load, with no multi-day
 organic soak time yet; don't read this as "production ready" or "no known
 issues."
 
+The repository can now demonstrate the narrow part on its own: `nix flake check`
+renders the module through real nixidy, from the placeholder values in
+[examples/all](examples/all). Until that landed, `nixidy` was not a flake input
+here at all — so despite a comment describing this module as "render-checked,"
+nothing in CI had ever evaluated it. The live evidence above was always the real
+evidence; the check simply stops the repository from making a claim it could not
+back.
+
+Image defaults are now pinned by digest. The LiteLLM default had been tracking
+`main-latest`, which changes the front door's behaviour between deploys with
+nothing to review beforehand.
+
 ## Requirements (deliberate, not negotiable)
 
 Like its siblings, `nixllm` targets a declarative GitOps cluster:

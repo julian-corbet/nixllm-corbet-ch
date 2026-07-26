@@ -270,19 +270,19 @@ in
 
       llamaCpp = lib.mkOption {
         type = lib.types.str;
-        default = "ghcr.io/ggml-org/llama.cpp:server-rocm";
+        default = "ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:0054a7ba8d864d5b1624c62a87f6402d6bf6eb399dfe3a3715793f2fa1ea6c3c";
         description = "ROCm-enabled llama.cpp server image the broker container runs llama-swap on top of.";
       };
 
       gen = lib.mkOption {
         type = lib.types.str;
-        default = "busybox:stable";
+        default = "busybox:stable@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662";
         description = "Image for the generator init container and refresh sidecar — a POSIX shell is all `gen-llama-swap.sh` needs.";
       };
 
       litellm = lib.mkOption {
         type = lib.types.str;
-        default = "ghcr.io/berriai/litellm:main-latest";
+        default = "ghcr.io/berriai/litellm:main-latest@sha256:de8ec5c07c62938783b59ba4ae8b3ca144ab96afd855f5f556883920d0804449";
         description = "LiteLLM image.";
       };
     };
