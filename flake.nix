@@ -31,6 +31,8 @@
       # app: consumers ask it for a model by name and request no GPU of their own.
       nixidyModules = {
         serving = ./modules/serving;
+        # Only module in this class — trivially the default.
+        default = self.nixidyModules.serving;
       };
 
       lib = { };
