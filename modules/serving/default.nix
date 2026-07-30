@@ -197,8 +197,17 @@ in
 
       nodeSelector = lib.mkOption {
         type = lib.types.attrsOf lib.types.str;
-        default = { gpu = "amd"; };
-        description = "Node selector restricting the broker to the node(s) that carry the shared GPU.";
+        # NO DEFAULT. The old default was `{ gpu = "amd"; }` — not a fact about GPUs, a fact
+        # about ONE operator's node-labeling convention. A wrong (or merely absent) selector
+        # does not fail loudly: the broker Deployment either schedules nowhere (Pending
+        # forever) or lands on a node with no card, so a default here would silently ship
+        # someone else's cluster topology as if it were universal.
+        example = { gpu = "amd"; };
+        description = ''
+          Node selector restricting the broker to the node(s) that carry the shared GPU.
+          REQUIRED, no default: state whatever label/value convention your own cluster uses
+          to mark GPU-bearing nodes.
+        '';
       };
 
       deviceResourceName = lib.mkOption {
@@ -245,14 +254,18 @@ in
 
       hsaOverrideGfxVersion = lib.mkOption {
         type = lib.types.str;
-        default = "10.3.0";
+        # NO DEFAULT. The old default was "10.3.0" — ROCm's ID for RDNA2, i.e. the value ONE
+        # operator's consumer card needs, not a fact about ROCm or about GPUs generally. A wrong
+        # value here does not fail loudly: ROCm either refuses to initialize the device at all,
+        # or silently compiles kernels for the wrong architecture and returns wrong results —
+        # neither shows up as an obvious startup error to trace back to this option.
+        example = "10.3.0";
         description = ''
           `HSA_OVERRIDE_GFX_VERSION` passed to the broker container. ROCm ships official support for a
           fixed list of GPU architectures; this override tells ROCm to treat the card as the nearest
-          supported architecture. This option DEFAULTS to "10.3.0" — the value an RDNA2 consumer card
-          needs — IT IS AN EXAMPLE, not a universal default. Find your own card's correct value from
-          ROCm's supported-GPU list, or set this to "" (empty string) to omit the env var entirely on a
-          card ROCm already supports natively.
+          supported architecture. REQUIRED, no default: find your own card's correct value from ROCm's
+          supported-GPU list, or set this to "" (empty string) to omit the env var entirely on a card
+          ROCm already supports natively.
         '';
       };
     };

@@ -78,13 +78,13 @@ GPU contract surface (`nixllm.serving.gpu.*`):
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `priorityClassName` | str | `"gpu-interactive"` | PriorityClass for the broker pod (matches nixgpu's priority-ladder interactive rung by default). |
-| `nodeSelector` | attrsOf str | `{ gpu = "amd"; }` | Restricts the broker to GPU-bearing node(s). |
+| `nodeSelector` | attrsOf str | **required** | Restricts the broker to GPU-bearing node(s). No default — a node-label convention is a fact about your cluster, not about GPUs. |
 | `deviceResourceName` | str | `"devic.es/rocm-compute"` | Extended-resource requested; matches nixgpu's device-tokens default compute lane. |
 | `deviceResourceCount` | int | `1` | Device-resource slots requested. |
 | `managedLabelKey` | str | `"nixgpu.corbet.ch/managed"` | Pod label key marking this pod as nixgpu-managed. |
 | `engineLabelKey` | str | `"nixgpu.corbet.ch/engine"` | Pod label key naming which GPU engine this pod uses. |
 | `engineLabelValue` | str | `"compute"` | Value for `engineLabelKey` — the compute engine, not the (separate-silicon) media engine. |
-| `hsaOverrideGfxVersion` | str | `"10.3.0"` | `HSA_OVERRIDE_GFX_VERSION` for ROCm. `"10.3.0"` is an RDNA2 **example** — look up your own card's correct value; empty string omits the env var entirely. |
+| `hsaOverrideGfxVersion` | str | **required** | `HSA_OVERRIDE_GFX_VERSION` for ROCm. No default — a wrong value doesn't fail loudly (ROCm refuses the device, or miscompiles kernels for the wrong architecture); look up your own card's correct value, or set `""` to omit the env var on a card ROCm already supports natively. |
 
 Images (`nixllm.serving.images.*`), all pinned, source-observed defaults:
 

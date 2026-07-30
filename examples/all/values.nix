@@ -27,5 +27,17 @@
       "example-chat" = "chat/Example-Chat-Model-Q8_0.gguf";
       "example-embed" = "embeddings/Example-Embedding-Model-F16.gguf";
     };
+
+    gpu = {
+      # Also required, also no default (nixgpu commit 521f4ef): a node selector is
+      # a fact about THIS example's node labels, not about GPUs. Any real caller
+      # states their own cluster's convention here instead.
+      nodeSelector = { gpu = "amd"; };
+
+      # Also required: the example card is an RDNA2 part, which needs this
+      # override. A real caller looks up their own card's value from ROCm's
+      # supported-GPU list, or sets "" on a card ROCm already supports natively.
+      hsaOverrideGfxVersion = "10.3.0";
+    };
   };
 }
