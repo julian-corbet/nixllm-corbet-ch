@@ -10,8 +10,9 @@
 # resource token, the managed/engine labels), not a provider of it.
 #
 # Status: extracted from a production system where this lane runs live, serving a RAG stack (embedder +
-# reranker + chat models) and other consuming apps on a single shared GPU. This generalized module has not
-# yet been re-verified live — re-verify before trusting it in a new cluster.
+# reranker + chat models) and other consuming apps on a single shared GPU. Adopted back into that cluster
+# in-place since 2026-07-22 (via `appName`, no prune/recreate); see the repo README's Status section for
+# the live-verification detail (fit-aware offload proven under adversarial contention).
 { lib, config, ... }:
 let
   cfg = config.nixllm.serving;
@@ -24,15 +25,45 @@ let
   # when nixgpu's modules are imported into the SAME nixidy environment as this one (the reference
   # deployment does exactly this: `nixgpu.nixidyModules.pressure-watcher` and `nixllm.nixidyModules.serving`
   # side by side) — the two copies of the attribute name can then never silently drift apart, because
-  # there is only one copy. `tryEval` + `or` together (the family's `mirrorOf` idiom, see nixhost's
-  # modules/nixhost.nix) catch BOTH ways the mirror can fail to resolve: `or` catches nixgpu's module
-  # never being imported at all (the attribute path genuinely does not exist), `tryEval` catches it being
-  # imported but throwing when forced (e.g. a required nixgpu option with no value set anywhere). Either
-  # way, falls back to `cfg.generator.vramTotalAttr` — this module's OWN declared default, identical to
-  # today's literal — so nixllm keeps working with zero flake-level dependency on nixgpu.
-  vramTotalAttr =
-    let attempt = builtins.tryEval (config.nixgpu.sysfs.vramTotalAttr or cfg.generator.vramTotalAttr);
-    in if attempt.success then attempt.value else cfg.generator.vramTotalAttr;
+  # there is only one copy. As of 2026-07-30 both sides agree it resolves to `"mem_info_vram_total"`
+  # (nixgpu's own commit that promoted this option to its current path — `nixgpu.sysfs.vramTotalAttr`,
+  # moved that day from `nixgpu.pressureWatcher.sysfs.vramTotalAttr` — checked both renderers agreed
+  # before touching anything).
+  #
+  # TWO independent probes, not one, because a single `tryEval (config.nixgpu.sysfs.vramTotalAttr or
+  # fallback)` cannot tell apart the two ways this mirror can miss the option: (a) nixgpu's modules are
+  # simply not imported into this environment at all — expected on every site that has not adopted
+  # nixgpu, and must stay silent — from (b) nixgpu's modules ARE imported here, but this exact option
+  # is not where this module expects it, because the sibling renamed or removed it (as literally
+  # happened the same day this comment was last touched — see nixgpu commit `53bab80`). Collapsing both
+  # into one silent fallback is the actual defect: `VRAM_TOTAL_ATTR` would quietly keep serving a stale
+  # literal and the fit-skip gate would keep "working" against the wrong sysfs path, with nothing
+  # anywhere saying so.
+  #
+  #   - `nixgpuPresent` uses `?`, not `tryEval`, to test only whether the bare `nixgpu` namespace key
+  #     exists in `config` at all — true the instant ANY nixgpu module (device-tokens, pressure-watcher,
+  #     whichever) contributes anything under `nixgpu.*`, independent of which leaf name that module
+  #     currently uses. `tryEval` is the wrong tool here: it does NOT catch a missing-attribute
+  #     selection (only `throw`/`abort`/assertion failures forced from an attribute that does exist) —
+  #     `config.nixgpu` on an environment with no nixgpu module at all raises an uncaught "attribute
+  #     missing" error straight through `tryEval`, not a caught `success = false`.
+  #   - `vramAttempt` forces the actual leaf this module reads, normalizing "the path is missing" and
+  #     "the path exists but throws when forced" to the same `success = false`: the inline `or (throw
+  #     ...)` converts a missing path into an actual thrown value first (which `tryEval` DOES catch),
+  #     precisely because a bare `or fallback` would swallow the missing-path case before `tryEval`
+  #     ever saw it, making the two failure modes indistinguishable again.
+  #
+  # `nixgpuPresent && !vramAttempt.success` is exactly failure mode (b) — nixgpu adopted, path gone —
+  # and is the only case that raises a nixidy warning (see `applications.${cfg.appName}.warnings`
+  # below). Failure mode (a) (`!nixgpuPresent`) falls back exactly as before, with no warning at all, so
+  # this option stays adoptable on every host that has not brought nixgpu in — deliberately a nixidy
+  # WARNING, not an assertion: this module must still render (the fallback is a real, if possibly
+  # stale, sysfs attribute name), it must just never do so silently once nixgpu is known to be present.
+  nixgpuPresent = config ? nixgpu;
+  vramAttempt = builtins.tryEval
+    (config.nixgpu.sysfs.vramTotalAttr or (throw "nixgpu.sysfs.vramTotalAttr not present"));
+  vramTotalAttr = if vramAttempt.success then vramAttempt.value else cfg.generator.vramTotalAttr;
+  vramMirrorDrifted = nixgpuPresent && !vramAttempt.success;
 
   # ALIASES is fed to the generator as a TAB-separated "name<TAB>relative/path.gguf" block, one alias per
   # line — see generator.aliases below and the script's own header comment for the convention.
@@ -399,11 +430,17 @@ in
           nixgpu's value automatically and this option's own setting is only the fallback used when
           nixgpu is absent; this default is that fallback, identical to the literal this module used
           before the mirror existed. Set this only if you run nixllm standalone (no nixgpu) on a
-          driver that exposes VRAM totals under a different attribute name. Get it wrong (here, or by
-          nixgpu drifting to a new kernel name this fallback doesn't know about) and it fails
-          silently, never loudly: `cat` of the nonexistent sysfs path returns nothing, and the
-          generator falls through to `vramFallbackBytes` — a static byte count silently standing in
-          for a live reading, on every scan, with no error anywhere.
+          driver that exposes VRAM totals under a different attribute name. Get the fallback wrong
+          (here) and it still fails silently: `cat` of the nonexistent sysfs path returns nothing, and
+          the generator falls through to `vramFallbackBytes`. But nixgpu renaming or removing the
+          option this mirrors out from under it — while nixgpu is still imported here — does NOT fail
+          silently: a nixidy warning fires (see `vramMirrorDrifted` in this module's `default.nix`)
+          naming the stale fallback value in use, precisely because that case is distinguishable from
+          "nixgpu was never adopted here" (see the same file for how). Only nixgpu being entirely
+          absent from this environment stays silent — by design, so this option remains adoptable on
+          a host that has no reason to know about nixgpu at all. Either way, a wrong attribute name
+          reaching the generator means a static `vramFallbackBytes` byte count silently stands in for
+          a live VRAM reading on every scan.
         '';
       };
 
@@ -527,6 +564,16 @@ in
       namespace = cfg.namespace;
       createNamespace = cfg.createNamespace;
       project = cfg.project;
+
+      warnings = lib.optional vramMirrorDrifted ''
+        nixgpu is imported into this environment, but config.nixgpu.sysfs.vramTotalAttr did not
+        resolve. The sibling likely renamed or removed the option this module mirrors (it moved
+        once already, on 2026-07-30, from nixgpu.pressureWatcher.sysfs.vramTotalAttr to
+        nixgpu.sysfs.vramTotalAttr — see nixgpu commit 53bab80). Falling back to this module's own
+        default ("${cfg.generator.vramTotalAttr}"), which may now disagree with nixgpu's real sysfs
+        attribute name — update the path modules/serving/default.nix reads to match nixgpu's
+        current option.
+      '';
 
       resources.configMaps.llm-serving-gen.data."gen-llama-swap.sh" = genScript;
 

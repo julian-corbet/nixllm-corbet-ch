@@ -24,7 +24,8 @@
       # nixidy module (github:arnarg/nixidy) — imported into a nixidy env's
       # `modules` list and rendered to manifests for Argo CD. Extracted from a
       # production cluster; the generalized form is render-checked (see `checks`)
-      # but not yet re-verified live.
+      # AND has been running live there, adopted in-place, since 2026-07-22 — see
+      # the repo README's Status section.
       #
       # This is the shared serving door. It graduated out of the sibling app
       # cookbook once it developed a mechanism worth having independently of the
@@ -49,8 +50,10 @@
               ++ [ ./examples/all/values.nix ];
           };
 
-          # Proves the nixgpu.sysfs.vramTotalAttr mirror (modules/serving/default.nix) both ways —
-          # unchanged when nixgpu is unadopted, actually wired when it is. See the file's own header.
+          # Proves the nixgpu.sysfs.vramTotalAttr mirror (modules/serving/default.nix) in all three
+          # directions — unchanged when nixgpu is unadopted, actually wired when it is, and visibly
+          # (not silently) falling back when nixgpu is adopted but has renamed the option out from
+          # under this module. See the file's own header.
           sysfsMirror = import ./checks/sysfs-attr-mirror.nix {
             inherit pkgs nixidy;
             servingModule = self.nixidyModules.serving;
@@ -61,6 +64,10 @@
           serving-renders = env.environmentPackage;
           sysfs-attr-mirror-absent = sysfsMirror.absent;
           sysfs-attr-mirror-present = sysfsMirror.present;
+          sysfs-attr-mirror-renamed = sysfsMirror.renamed;
+          sysfs-attr-mirror-warning-absent = sysfsMirror.warning-absent;
+          sysfs-attr-mirror-warning-present = sysfsMirror.warning-present;
+          sysfs-attr-mirror-warning-renamed = sysfsMirror.warning-renamed;
         });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
