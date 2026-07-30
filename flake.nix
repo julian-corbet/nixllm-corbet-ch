@@ -42,14 +42,25 @@
       # not that it serves a model correctly, which needs a card and weights.
       checks = forAllSystems (system:
         let
+          pkgs = nixpkgs.legacyPackages.${system};
           env = nixidy.lib.mkEnv {
-            pkgs = nixpkgs.legacyPackages.${system};
+            inherit pkgs;
             modules = nixpkgs.lib.attrValues self.nixidyModules
               ++ [ ./examples/all/values.nix ];
+          };
+
+          # Proves the nixgpu.sysfs.vramTotalAttr mirror (modules/serving/default.nix) both ways —
+          # unchanged when nixgpu is unadopted, actually wired when it is. See the file's own header.
+          sysfsMirror = import ./checks/sysfs-attr-mirror.nix {
+            inherit pkgs nixidy;
+            servingModule = self.nixidyModules.serving;
+            valuesModule = ./examples/all/values.nix;
           };
         in
         {
           serving-renders = env.environmentPackage;
+          sysfs-attr-mirror-absent = sysfsMirror.absent;
+          sysfs-attr-mirror-present = sysfsMirror.present;
         });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);

@@ -26,6 +26,14 @@ set -u
 STORE="${STORE:-/models}"
 OUT="${OUT:-/config.d/config.yaml}"              # the one llama-swap config the broker --watch-config's
 SYS="${SYS:-/host/sys}"
+# sysfs attribute name for total VRAM, under $SYS/class/drm/card*/device/. amdgpu-specific, not a DRM
+# standard (nixgpu CONTRACT.md; nixgpu's own pressure-watcher reads the identical fact). Owned by the
+# sibling nixgpu project when present — this module's default.nix mirrors `nixgpu.sysfs.vramTotalAttr`
+# into this env var when nixgpu is co-deployed in the same environment; this literal is nixllm's OWN
+# fallback, used standalone (nixllm has no hard dependency on nixgpu). Wrong name here doesn't crash:
+# `cat` of the nonexistent path silently fails and `vram` below falls through to VRAM_FALLBACK_BYTES, a
+# static byte count — a live reading silently replaced by a stale constant, never a loud error.
+VRAM_TOTAL_ATTR="${VRAM_TOTAL_ATTR:-mem_info_vram_total}"
 RESERVE_BYTES="${RESERVE_BYTES:-2147483648}"     # headroom for KV cache + runtime overhead
 FIT_TARGET_MIB=$(( RESERVE_BYTES / 1048576 ))    # --fit headroom in MiB (same reserve as the skip gate); chat models pass --fit-target this
 TTL="${TTL:-300}"
@@ -48,7 +56,7 @@ ALIASES="${ALIASES:-}"
 TAB="$(printf '\t')"
 log() { echo "gen-llama-swap: $*" >&2; }
 
-vram="$(cat "$SYS"/class/drm/card*/device/mem_info_vram_total 2>/dev/null | sort -rn | head -1)"
+vram="$(cat "$SYS"/class/drm/card*/device/"$VRAM_TOTAL_ATTR" 2>/dev/null | sort -rn | head -1)"
 [ -n "${vram:-}" ] || vram="${VRAM_FALLBACK_BYTES:-17163091968}"   # fallback ~16 GiB (the nixgpu reference card) if sysfs is unreadable
 THRESH=$(( vram - RESERVE_BYTES ))
 # RAM ceiling for MoE expert-offload (B15): experts live in CPU RAM, so an oversized MoE is servable as long
@@ -66,7 +74,7 @@ BATCH_EMBED_RERANK="${BATCH_EMBED_RERANK:-8192}"
 # is_moe: GGUF metadata carries "<arch>.expert_count" only for Mixture-of-Experts models; the key name is
 # plain text in the file header, so a header grep is a cheap, reliable detector (no GGUF parser needed).
 is_moe(){ head -c 4000000 "$1" 2>/dev/null | grep -aq expert_count; }
-log "card VRAM=${vram}B  fit-threshold=${THRESH}B  RAM-ceiling=${RAMCEIL}B  store=$STORE"
+log "card VRAM=${vram}B (via $VRAM_TOTAL_ATTR)  fit-threshold=${THRESH}B  RAM-ceiling=${RAMCEIL}B  store=$STORE"
 
 alias_for() {  # relpath -> friendly name (empty if none)
   printf '%s\n' "$ALIASES" | while IFS="$TAB" read -r nm rp; do

@@ -18,6 +18,22 @@ let
 
   genScript = builtins.readFile ./gen-llama-swap.sh;
 
+  # Mirror of the sibling nixgpu project's canonical `nixgpu.sysfs.vramTotalAttr` (nixgpu owns the
+  # card, so it owns amdgpu's sysfs attribute names — see nixgpu's modules/pressure-watcher/default.nix,
+  # which declares that option and is nixgpu's own consumer of it). Reads `config.nixgpu.sysfs.vramTotalAttr`
+  # when nixgpu's modules are imported into the SAME nixidy environment as this one (the reference
+  # deployment does exactly this: `nixgpu.nixidyModules.pressure-watcher` and `nixllm.nixidyModules.serving`
+  # side by side) — the two copies of the attribute name can then never silently drift apart, because
+  # there is only one copy. `tryEval` + `or` together (the family's `mirrorOf` idiom, see nixhost's
+  # modules/nixhost.nix) catch BOTH ways the mirror can fail to resolve: `or` catches nixgpu's module
+  # never being imported at all (the attribute path genuinely does not exist), `tryEval` catches it being
+  # imported but throwing when forced (e.g. a required nixgpu option with no value set anywhere). Either
+  # way, falls back to `cfg.generator.vramTotalAttr` — this module's OWN declared default, identical to
+  # today's literal — so nixllm keeps working with zero flake-level dependency on nixgpu.
+  vramTotalAttr =
+    let attempt = builtins.tryEval (config.nixgpu.sysfs.vramTotalAttr or cfg.generator.vramTotalAttr);
+    in if attempt.success then attempt.value else cfg.generator.vramTotalAttr;
+
   # ALIASES is fed to the generator as a TAB-separated "name<TAB>relative/path.gguf" block, one alias per
   # line — see generator.aliases below and the script's own header comment for the convention.
   aliasesEnv = lib.concatStringsSep "\n"
@@ -31,6 +47,7 @@ let
     { name = "STORE"; value = cfg.storeMountPath; }
     { name = "OUT"; value = cfg.generator.outputConfigPath; }
     { name = "SYS"; value = cfg.generator.sysMountPath; }
+    { name = "VRAM_TOTAL_ATTR"; value = vramTotalAttr; }
     { name = "RESERVE_BYTES"; value = toString cfg.generator.reserveBytes; }
     { name = "TTL"; value = toString cfg.generator.ttlSeconds; }
     { name = "HEALTH_CHECK_TIMEOUT"; value = toString cfg.generator.healthCheckTimeoutSeconds; }
@@ -368,6 +385,26 @@ in
         type = lib.types.str;
         default = "/host/sys";
         description = "In-pod mount path for the sysHostPath volume (the generator's SYS env var).";
+      };
+
+      vramTotalAttr = lib.mkOption {
+        type = lib.types.str;
+        default = "mem_info_vram_total";
+        description = ''
+          sysfs attribute name (under `class/drm/card*/device/`, relative to `sysMountPath`) the
+          generator reads for total VRAM, to compute the fit-skip threshold (`reserveBytes`) at every
+          store scan. amdgpu-specific, not a DRM standard — the same fact the sibling nixgpu project
+          owns as `nixgpu.sysfs.vramTotalAttr` (see its `pressure-watcher` module). When nixgpu's
+          modules are imported into the SAME nixidy environment as this one, this module MIRRORS
+          nixgpu's value automatically and this option's own setting is only the fallback used when
+          nixgpu is absent; this default is that fallback, identical to the literal this module used
+          before the mirror existed. Set this only if you run nixllm standalone (no nixgpu) on a
+          driver that exposes VRAM totals under a different attribute name. Get it wrong (here, or by
+          nixgpu drifting to a new kernel name this fallback doesn't know about) and it fails
+          silently, never loudly: `cat` of the nonexistent sysfs path returns nothing, and the
+          generator falls through to `vramFallbackBytes` — a static byte count silently standing in
+          for a live reading, on every scan, with no error anywhere.
+        '';
       };
 
       reserveBytes = lib.mkOption {

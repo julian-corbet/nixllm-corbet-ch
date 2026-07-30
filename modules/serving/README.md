@@ -114,6 +114,7 @@ environment-variable inputs:
 | `pollIntervalSeconds` | int | `60` | How often the refresh sidecar re-scans the store. |
 | `outputConfigPath` | str | `"/config.d/config.yaml"` | In-pod path the generated config is written to. |
 | `sysMountPath` | str | `"/host/sys"` | In-pod mount path for `sysHostPath` (the generator's `SYS`). |
+| `vramTotalAttr` | str | `"mem_info_vram_total"` | sysfs attribute (under `class/drm/card*/device/`) read for total VRAM. amdgpu-specific, not a DRM standard — the same fact the sibling nixgpu project owns as `nixgpu.sysfs.vramTotalAttr`. When nixgpu's modules are imported into the same nixidy environment as this one, this module **mirrors nixgpu's value automatically**; this option is only nixllm's own fallback for running standalone (no hard dependency on nixgpu). See the option's own description for what silently breaks if it's wrong. |
 | `reserveBytes` | int | `2147483648` | VRAM headroom reserved for KV cache + runtime overhead. |
 | `ttlSeconds` | int | `300` | llama-swap idle TTL before an unused model unloads (B6). |
 | `healthCheckTimeoutSeconds` | int | `900` | llama-swap's `healthCheckTimeout` — size for your slowest cold-load, not the average one. |
