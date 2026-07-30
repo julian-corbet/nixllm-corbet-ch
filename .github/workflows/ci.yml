@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # --all-systems is NOT optional here, and is the whole reason this file spells the command
+      # out rather than running a bare `nix flake check`.
+      #
+      # Without it, `nix flake check` evaluates only the checks for the RUNNER's own system and
+      # prints "omitted these incompatible systems" as a warning — then exits 0. Every other system
+      # this flake declares goes unevaluated while CI reports green, which is a check that passed
+      # having tested nothing. That failure mode is the one this repo exists to make impossible, so
+      # it would be absurd to ship it here.
+      #
+      # `systems` in flake.nix is deliberately narrow so this can be strict: only platforms that
+      # can genuinely be evaluated are declared, and all of them really are.
+      - name: nix flake check (all systems)
+        run: nix flake check --all-systems --print-build-logs
