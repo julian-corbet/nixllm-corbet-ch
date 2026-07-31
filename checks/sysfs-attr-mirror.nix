@@ -39,8 +39,7 @@ let
 
   fakeNixgpuRenamed = { lib, ... }: {
     # Proves nixgpu is adopted (some option under `nixgpu.*` exists) WITHOUT declaring
-    # `nixgpu.sysfs.vramTotalAttr` — simulating that specific option path moving elsewhere, the way it
-    # already moved once in nixgpu itself (nixgpu commit 53bab80, the same day this check was added).
+    # `nixgpu.sysfs.vramTotalAttr` — simulating that specific option path moving elsewhere.
     options.nixgpu.deviceTokens.enable = lib.mkOption {
       type = lib.types.bool;
       default = true;

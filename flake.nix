@@ -6,9 +6,7 @@
 
     # nixidy renders the module below to Argo CD manifests. A real input, not
     # just a name in a comment: without it there is no module system to evaluate
-    # `serving` against, and `nix flake check` passes by checking nothing. The
-    # comment below used to call this module "render-checked" while no such check
-    # existed — this input is what makes that claim true.
+    # `serving` against, and `nix flake check` passes by checking nothing.
     nixidy = {
       url = "github:arnarg/nixidy";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -29,9 +29,9 @@
     };
 
     gpu = {
-      # Also required, also no default (nixgpu commit 521f4ef): a node selector is
-      # a fact about THIS example's node labels, not about GPUs. Any real caller
-      # states their own cluster's convention here instead.
+      # Also required, also no default: a node selector is a fact about THIS
+      # example's node labels, not about GPUs. Any real caller states their own
+      # cluster's convention here instead.
       nodeSelector = { gpu = "amd"; };
 
       # Also required: the example card is an RDNA2 part, which needs this

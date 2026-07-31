@@ -25,17 +25,13 @@ let
   # when nixgpu's modules are imported into the SAME nixidy environment as this one (the reference
   # deployment does exactly this: `nixgpu.nixidyModules.pressure-watcher` and `nixllm.nixidyModules.serving`
   # side by side) — the two copies of the attribute name can then never silently drift apart, because
-  # there is only one copy. As of 2026-07-30 both sides agree it resolves to `"mem_info_vram_total"`
-  # (nixgpu's own commit that promoted this option to its current path — `nixgpu.sysfs.vramTotalAttr`,
-  # moved that day from `nixgpu.pressureWatcher.sysfs.vramTotalAttr` — checked both renderers agreed
-  # before touching anything).
+  # there is only one copy.
   #
   # TWO independent probes, not one, because a single `tryEval (config.nixgpu.sysfs.vramTotalAttr or
   # fallback)` cannot tell apart the two ways this mirror can miss the option: (a) nixgpu's modules are
   # simply not imported into this environment at all — expected on every site that has not adopted
   # nixgpu, and must stay silent — from (b) nixgpu's modules ARE imported here, but this exact option
-  # is not where this module expects it, because the sibling renamed or removed it (as literally
-  # happened the same day this comment was last touched — see nixgpu commit `53bab80`). Collapsing both
+  # is not where this module expects it, because the sibling renamed or removed it. Collapsing both
   # into one silent fallback is the actual defect: `VRAM_TOTAL_ATTR` would quietly keep serving a stale
   # literal and the fit-skip gate would keep "working" against the wrong sysfs path, with nothing
   # anywhere saying so.
