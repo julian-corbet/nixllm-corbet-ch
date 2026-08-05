@@ -34,6 +34,10 @@
         default = self.nixidyModules.serving;
       };
 
+      # Arch/CachyOS package-selection plane for local model clients and engines. It deliberately
+      # does not install a GPU runtime: that substrate is the sibling nixgpu project's concern.
+      systemManagerModules.tools = ./modules/system-manager.nix;
+
       lib = { };
 
       # Renders the module against the real module system it targets, from the
@@ -57,6 +61,11 @@
             servingModule = self.nixidyModules.serving;
             valuesModule = ./examples/all/values.nix;
           };
+
+          toolCatalogue = import ./checks/tool-catalogue.nix {
+            inherit (nixpkgs) lib;
+            toolsModule = self.systemManagerModules.tools;
+          };
         in
         {
           serving-renders = env.environmentPackage;
@@ -66,6 +75,7 @@
           sysfs-attr-mirror-warning-absent = sysfsMirror.warning-absent;
           sysfs-attr-mirror-warning-present = sysfsMirror.warning-present;
           sysfs-attr-mirror-warning-renamed = sysfsMirror.warning-renamed;
+          tool-catalogue = toolCatalogue;
         });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
