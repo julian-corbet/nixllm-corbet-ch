@@ -13,11 +13,12 @@ let
       "python-openai"
       "python-openai-whisper"
       "python-transformers"
+      "whisper-cpp"
     ];
   };
   results = [
     (check "tools/official-packages-stay-out-of-aur"
-      (all.nixllm.archPackages == [ "python-openai" "python-openai-whisper" "python-transformers" ])
+      (all.nixllm.archPackages == [ "python-openai" "python-openai-whisper" "python-transformers" "whisper-cpp" ])
       "got: ${builtins.toJSON all.nixllm.archPackages}")
     (check "tools/aur-packages-stay-out-of-pacman"
       (all.nixllm.aurPackages == [ "anythingllm-cli-bin" "intel-llm" "intel-llm-convert" "litert-lm" "llama.cpp-sycl-bin" "openvino-genai-bin" ])
