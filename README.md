@@ -97,9 +97,6 @@ Part of an interoperating set — usable independently, designed together:
 - [nixapps](https://github.com/julian-corbet/nixapps-corbet-ch) — curated
   tenant app modules (image generation, TTS, …) that consume the same
   contracts.
-- [nixvibe](https://github.com/julian-corbet/nixvibe-corbet-ch) — a coding
-  agent in a real browser terminal; requires an endpoint like this one but
-  never bundles it.
 
 ## License
 
