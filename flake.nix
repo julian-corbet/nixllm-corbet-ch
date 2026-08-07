@@ -64,6 +64,7 @@
 
           toolCatalogue = import ./checks/tool-catalogue.nix {
             inherit (nixpkgs) lib;
+            inherit pkgs;
             toolsModule = self.systemManagerModules.tools;
           };
         in

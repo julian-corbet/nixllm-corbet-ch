@@ -9,6 +9,24 @@
     intel-llm-convert = { arch = "intel-llm-convert"; aur = true; };
     litert-lm = { arch = "litert-lm"; aur = true; };
     llama-cpp-sycl = { arch = "llama.cpp-sycl-bin"; aur = true; };
+
+    # LM Studio: a desktop app for downloading and running local GGUF models, with
+    # its own chat UI and an OpenAI-compatible local server. The one GUI entry in
+    # this catalogue — every other tool here is a CLI or library — but the file's
+    # scope above is "clients, inference engines, and conversion tools," not
+    # "headless tools," and LM Studio is itself a llama.cpp-based inference engine
+    # as much as a chat client, so it fits without stretching the boundary. It is
+    # the approachable end of local inference: good for pulling a model and trying
+    # it in minutes. It is not the route for a big or shared workload — that stays
+    # this repo's own llama-swap + llama.cpp broker (modules/serving), which fits
+    # one card to many callers on demand instead of one app holding it for itself.
+    # AUR-only, confirmed rather than guessed from the "-bin" suffix: absent from
+    # `pacman -Si lmstudio-bin`, present in the AUR RPC. No nixpkgs attribute,
+    # matching every other AUR entry here — AI tools come from the AUR, never
+    # nixpkgs, because they self-update in place and a nixpkgs derivation breaks
+    # that update path.
+    lmstudio = { arch = "lmstudio-bin"; aur = true; };
+
     openvino-genai = { arch = "openvino-genai-bin"; aur = true; };
     python-openai = { arch = "python-openai"; };
     python-openai-whisper = { arch = "python-openai-whisper"; };
