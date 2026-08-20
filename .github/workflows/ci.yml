@@ -9,6 +9,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # A job that hangs must fail on its own clock instead of holding a runner until GitHub's
+    # six-hour default gives up. Sized at roughly 3x this job's observed p95 duration.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v27
@@ -27,5 +30,10 @@ jobs:
       #
       # `systems` in flake.nix is deliberately narrow so this can be strict: only platforms that
       # can genuinely be evaluated are declared, and all of them really are.
+      #
+      # --keep-going is the same idea one level down: without it the first check to fail aborts
+      # the checks that have not run yet, so a red run reports one problem per rerun instead of
+      # every problem at once. A failing check still fails the run -- it just stops taking the
+      # other checks' results down with it.
       - name: nix flake check (all systems)
-        run: nix flake check --all-systems --print-build-logs
+        run: nix flake check --all-systems --keep-going --print-build-logs
