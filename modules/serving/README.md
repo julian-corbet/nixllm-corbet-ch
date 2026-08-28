@@ -101,6 +101,8 @@ LiteLLM (`nixllm.serving.litellm.*`):
 |---|---|---|---|
 | `existingSecretName` | str | `"litellm-secrets"` | Name of an **existing** Secret (bring your own — sealed-secrets, external-secrets, or a plain Secret you apply yourself) holding the master key. Not created by this module. |
 | `masterKeySecretKey` | str | `"LITELLM_MASTER_KEY"` | Key within that Secret. |
+| `databaseSecretName` | null or str | `null` | Existing Secret containing `DATABASE_URL`. Set it to enable durable virtual keys and model-scoped app credentials; this module does not create the database or Secret. |
+| `databaseUrlSecretKey` | str | `"DATABASE_URL"` | Key within `databaseSecretName` containing the PostgreSQL URL. |
 | `port` | port | `4000` | LiteLLM listen port. |
 | `clusterIP` | nullOr str | `null` | Optional fixed ClusterIP. Leave `null` unless your routing needs a stable, pre-known VIP. |
 | `requestTimeout` | int | `900` | LiteLLM's own `request_timeout` (seconds) — keep ≥ `generator.healthCheckTimeoutSeconds`, since LiteLLM sits between every consuming app and the broker and will cut the connection first if its timeout is shorter. |
@@ -142,6 +144,9 @@ environment-variable inputs:
   # Bring your own Secret named litellm-secrets with key LITELLM_MASTER_KEY
   # (sealed-secrets, external-secrets, whatever your cluster uses), or point
   # existingSecretName at one you already manage.
+
+  # Optional but required for scoped consumer keys:
+  # litellm.databaseSecretName = "litellm-database";
 
   # Optional: pin a couple of stable app-facing names.
   nixllm.serving.generator.aliases = {

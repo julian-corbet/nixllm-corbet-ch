@@ -362,6 +362,22 @@ in
         description = "Key within existingSecretName holding the master key value.";
       };
 
+      databaseSecretName = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = ''
+          Optional existing Secret holding LiteLLM's PostgreSQL connection URL. Set this to enable
+          durable virtual keys, model-scoped access, and usage accounting. The module never creates
+          the database or Secret.
+        '';
+      };
+
+      databaseUrlSecretKey = lib.mkOption {
+        type = lib.types.str;
+        default = "DATABASE_URL";
+        description = "Key within databaseSecretName containing LiteLLM's PostgreSQL URL.";
+      };
+
       port = lib.mkOption {
         type = lib.types.port;
         default = 4000;
@@ -706,8 +722,26 @@ in
                 name = cfg.litellm.existingSecretName;
                 key = cfg.litellm.masterKeySecretKey;
               };
+            }] ++ lib.optionals (cfg.litellm.databaseSecretName != null) [{
+              name = "DATABASE_URL";
+              valueFrom.secretKeyRef = {
+                name = cfg.litellm.databaseSecretName;
+                key = cfg.litellm.databaseUrlSecretKey;
+              };
             }];
             ports = [{ containerPort = cfg.litellm.port; }];
+            readinessProbe = {
+              httpGet = { path = "/health/readiness"; port = cfg.litellm.port; };
+              initialDelaySeconds = 5;
+              periodSeconds = 10;
+              failureThreshold = 6;
+            };
+            livenessProbe = {
+              httpGet = { path = "/health/liveliness"; port = cfg.litellm.port; };
+              initialDelaySeconds = 15;
+              periodSeconds = 30;
+              failureThreshold = 3;
+            };
             volumeMounts = [{ name = "cfg"; mountPath = "/etc/litellm"; }];
           }];
           spec.volumes = [{ name = "cfg"; configMap.name = "litellm-config"; }];

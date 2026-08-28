@@ -19,6 +19,10 @@
     # guess and fails by name until told.
     modelStoreHostPath = "/var/lib/example/models";
 
+    # Exercise the optional durable-key path without supplying any credential.
+    # The rendered Deployment only names this existing Secret and its key.
+    litellm.databaseSecretName = "example-litellm-database";
+
     # Two model aliases, on purpose. `generator.aliases` defaults to empty, and
     # the routing table is the interesting half of this module — a check with no
     # aliases would pass while never rendering a route. Each maps a short name a
