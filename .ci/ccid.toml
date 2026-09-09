@@ -1,0 +1,19 @@
+# Shared ccid runner; coverage selectors are explicit.
+schema = 1
+project = "nixllm"
+
+[checks.native]
+kind = "nix"
+mode = "native"
+
+[checks.eval]
+kind = "nix"
+mode = "eval"
+
+[checks.list]
+kind = "nix"
+mode = "list"
+
+[checks.all-systems]
+kind = "nix"
+mode = "all-systems"
