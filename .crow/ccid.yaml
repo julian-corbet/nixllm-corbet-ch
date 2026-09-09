@@ -6,7 +6,7 @@ variables:
   SOURCE_SHA256: {default: ""}
   CI_TOOL_ARCHIVE: {default: ""}
   CI_TOOL_SHA256: {default: ""}
-  CHECKS: {default: "native"}
+  CHECKS: {default: "all-systems"}
   CI_JOBS: {default: ""}
   CI_TEST_THREADS: {default: ""}
   CI_MEMORY_MB: {default: ""}

@@ -1,9 +1,7 @@
 name: ci
 
+# Crow runs portable validation; this workflow is the manual fallback.
 on:
-  push:
-    branches: [ main ]
-  pull_request:
   workflow_dispatch:
 
 jobs:
